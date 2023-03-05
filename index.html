@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Learn</title>
+</head>
+
+<body>
+    <style>
+        .tooltip {
+            background-color: white;
+            border: 1px solid gray;
+            position: absolute;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 12px;
+        }
+    </style>
+    <div class="canvas"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.2/d3.min.js"
+        integrity="sha512-oKI0pS1ut+mxQZdqnD3w9fqArLyILRsT3Dx0B+8RVEXzEk3aNK3J3pWlaGJ8MtTs1oiwyXDAH6hG6jy1sY0YqA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-analytics.js";
+        import { getFirestore, collection, getDocs, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js'
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "",
+            authDomain: "",
+            projectId: "d3firebase-10803",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: "",
+            measurementId: ""
+        };
+
+        const tooltip = d3.select('body').append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0);
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+
+        // Get a reference to the Firestore database
+        const db = getFirestore(app);
+
+        // Get a reference to a collection in the database
+        const citiesRef = collection(db, 'buildings');
+        let data = [];
+
+        const margin = { top: 20, bottom: 120, left: 30, right: 20 };
+        const width = 500;
+        const height = 500;
+        const graphWidth = width - margin.left - margin.right;
+        const graphHeight = height - margin.top - margin.bottom;
+
+        // document.querySelector('svg')?.remove();
+        const svg = d3
+            .select(".canvas")
+            .append("svg")
+            .attr("width", 500)
+            .attr("height", 500);
+        const graph = svg.append("g").attr('transform', `translate(${margin.left}, ${margin.top})`);
+        onSnapshot(citiesRef, (querySnapshot) => {
+            data = [];
+            querySnapshot.forEach((doc) => {
+                // console.log(`${doc.id} => ${JSON.stringify(doc.data())}`);
+                data.push(doc.data())
+            });
+
+            const x = d3
+                .scaleBand()
+                .domain(data.map((item) => item.name))
+                .range([0, graphWidth])
+                .paddingInner(0.3)
+                .paddingOuter(0.3);
+
+            const y = d3
+                .scaleLinear()
+                .domain([0, d3.max(data, (d) => d.height)])
+                .range([graphHeight, 0]);
+
+            const xLabel = svg.append('g').attr('transform', `translate(130, ${graphHeight + 120})`).append('text').text("bikash")
+                .attr('font-size', '20px').attr('fill', 'black').attr('dominant-baseline', 'hanging')
+
+            xLabel.attr('x', 50)
+                .attr('y', 0);
+
+            const rects = graph.selectAll("rect")
+                .data(data)
+            rects.enter()
+                .append("rect")
+                .attr("width", function (d) {
+                    return x.bandwidth();
+                })
+                .attr("height", function (d) {
+                    return graphHeight - y(d.height);
+                })
+                .attr("x", (d, i) => x(d.name))
+                .attr("y", (d) => {
+                    console.log("Not Executed");
+                    return y(d.height)
+                })
+                .attr("fill", function (d) {
+                    var color = d3.rgb(
+                        Math.random() * 255,
+                        Math.random() * 255,
+                        Math.random() * 255
+                    );
+                    return color;
+                }).on("mouseover", function (d) {
+                    console.log("test", d);
+                    tooltip.transition().duration(200).style('opacity', 0.9);
+                    tooltip.html(`Height: <p>${d.target.__data__.name}</p><p>${d.target.__data__.height}</p>`)
+                        .style('left', `${d3.layerX}px`)
+                        .style('top', `${(d3.layerY - 28)}px`);
+                })
+                .on("mouseout", function () {
+                    tooltip.transition().duration(500).style('opacity', 0);
+                });
+
+            rects.attr("height", function (d) {
+                console.log("executed");
+                return graphHeight - y(d.height);
+            })
+                .attr("y", (d) => {
+                    return y(d.height)
+                });
+            rects.exit().remove();
+
+            //ticks
+            const xAxisGroup = graph.append('g').attr('transform', `translate(0, ${graphHeight})`)
+            const yAxisGroup = graph.append('g');
+
+            const xAxis = d3.axisBottom(x);
+            const yAxis = d3.axisLeft(y);
+            xAxisGroup.call(xAxis);
+            yAxisGroup.call(yAxis);
+
+            xAxisGroup.selectAll("text").attr('transform', `rotate(-40)`).attr('text-anchor', 'end')
+
+        });
+    </script>
+
+
+</body>
+
+</html>
